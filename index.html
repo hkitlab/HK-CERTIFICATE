@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HK সার্টিফিকেট</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for certificate borders and fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&display=swap');
+        
+        body {
+            font-family: 'Tiro Bangla', sans-serif;
+            background-color: #f7f7f7;
+        }
+
+        /* Certificate Container Styling */
+        #certificate-area {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            min-height: 500px;
+            padding: 3rem;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative; /* Necessary for absolute footer */
+            border-radius: 0.75rem; /* Rounded corners */
+        }
+        
+        /* Default Style for Template 10 */
+        .default-style {
+            border: 16px solid transparent;
+            border-image: linear-gradient(to right, #1d4ed8, #ef4444) 1;
+        }
+
+        .cert-text {
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            z-index: 10;
+            position: relative;
+        }
+
+        .signature-line {
+            width: 70%;
+            margin-bottom: 0.25rem;
+            border-bottom: 2px solid #374151;
+        }
+        
+        .template-preview {
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .template-preview.selected {
+            border-color: #1d4ed8;
+            box-shadow: 0 0 10px rgba(29, 78, 216, 0.8);
+        }
+
+        /* Print Specific Styles */
+        @media print {
+            body {
+                background: none;
+                margin: 0;
+            }
+            .input-panel {
+                display: none;
+            }
+            .main-container {
+                display: block;
+                padding: 0;
+            }
+            #certificate-area {
+                width: 100%;
+                height: 100vh; /* Takes full page height */
+                margin: 0;
+                box-shadow: none;
+                padding: 1in; /* Standard print padding */
+                /* Remove custom border for images */
+                border: none !important; 
+                border-image: none !important;
+            }
+
+            /* Show Footer only in Print */
+            #certificate-footer {
+                display: block; 
+                position: absolute;
+                bottom: 10px; /* Position at the bottom of the printed page area */
+                left: 0;
+                right: 0;
+                text-align: center;
+                font-size: 10px;
+                color: #555;
+            }
+        }
+    </style>
+    <script>
+        const TEMPLATES = [
+            { id: 1, name: "নীল ও সোনালী আধুনিক", url: "uploaded:06a6487b09b434ec143954c585b2e5d9.jpg" },
+            { id: 2, name: "নীল ও সোনালী জ্যামিতি", url: "uploaded:blue-gold-geometry-modern-certificate-border-frame_257504-424.jpg" },
+            { id: 3, name: "সবুজ ও সোনালী তরঙ্গ", url: "uploaded:pngtree-blank-golden-green-certificate-frame-vector-png-image_7895814.png" },
+            { id: 4, name: "চিরায়ত নীল নকশা", url: "uploaded:images (4).jpeg" },
+            { id: 5, name: "জলপাই ঢেউ নকশা", url: "uploaded:hand-drawn-diploma-border-frame_23-2151199907.jpg" },
+            { id: 6, name: "নীল-সবুজ ও সোনালী রিবন", url: "uploaded:certificate-background-blue-gold-theme_297344-629.jpg" },
+            { id: 7, name: "কমলা-নীল ও সোনালী রিবন", url: "uploaded:pngtree-certificate-background-or-name-card-color-blue-and-orange-with-gold-vector-image_15864687.jpg" },
+            { id: 8, name: "নীল নকশি বর্ডার", url: "uploaded:88fd9e34a065f48178229a09549793cd.jpg" },
+            { id: 9, name: "কালো ও সোনালী রাজকীয়", url: "uploaded:665858c95c31b60.jpg" },
+            { id: 10, name: "সাধারণ HK থিম (Default)", url: "none" }
+        ];
+        
+        let selectedTemplateId = 1; // Default to the first template
+
+        // Set up the necessary Firebase variables (required for Canvas environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // Function to select a template
+        function selectTemplate(id) {
+            selectedTemplateId = id;
+            updateTemplateSelectionUI();
+            updateCertificate();
+        }
+
+        // Function to update the template selection UI (highlighting)
+        function updateTemplateSelectionUI() {
+            document.querySelectorAll('.template-preview').forEach(el => {
+                el.classList.remove('selected');
+                if (parseInt(el.dataset.templateId) === selectedTemplateId) {
+                    el.classList.add('selected');
+                }
+            });
+        }
+
+        // Function to update the certificate content and style
+        function updateCertificate() {
+            const recipientName = document.getElementById('recipientName').value || "প্রাপকের নাম";
+            const achievement = document.getElementById('achievement').value || "অসামান্য অর্জন";
+            const signatoryName = document.getElementById('signatoryName').value || "স্বাক্ষরকারী কর্মকর্তা";
+            const signatoryTitle = document.getElementById('signatoryTitle').value || "প্রধান কার্যনির্বাহী (HK)";
+            
+            const date = new Date().toLocaleDateString('bn-BD', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const certArea = document.getElementById('certificate-area');
+            const template = TEMPLATES.find(t => t.id === selectedTemplateId);
+            
+            // --- Update Certificate Style/Background ---
+            certArea.classList.remove('default-style');
+            certArea.style.backgroundImage = 'none';
+            certArea.style.border = 'none';
+            certArea.style.borderImage = 'none';
+
+            if (template.url === 'none') {
+                // Apply custom CSS for Template 10
+                certArea.classList.add('default-style');
+            } else {
+                // Apply background image for templates 1-9
+                certArea.style.backgroundImage = `url(${template.url})`;
+            }
+
+
+            // --- Update Certificate Text Content ---
+            const certStatementElement = document.getElementById('certStatement');
+            if (certStatementElement) {
+                certStatementElement.innerHTML = `
+                    <span class="text-xl md:text-2xl font-semibold text-gray-700">
+                        এই শংসাপত্রটি গর্বের সাথে দেওয়া হচ্ছে:
+                    </span>
+                    <br>
+                    <span class="text-3xl md:text-5xl font-extrabold text-[#1d4ed8] my-4 block">
+                        ${recipientName}
+                    </span>
+                    <br>
+                    <span class="text-xl md:text-2xl text-gray-800">
+                        তাঁর/তাঁদের অসাধারণ দক্ষতা, কঠোর পরিশ্রম এবং সফলভাবে
+                    </span>
+                    <br>
+                    <span class="text-2xl md:text-3xl italic text-[#ef4444] font-bold my-2 block">
+                        "${achievement}"
+                    </span>
+                    <br>
+                    <span class="text-lg md:text-xl text-gray-700">
+                        বিষয়টি সম্পন্ন করার স্বীকৃতিস্বরূপ।
+                    </span>
+                `;
+            }
+
+            // Update Date and Signatory
+            document.getElementById('certDate').textContent = `প্রদানের তারিখ: ${date}`;
+            document.getElementById('certSignatoryName').textContent = signatoryName;
+            document.getElementById('certSignatoryTitle').textContent = signatoryTitle;
+        }
+
+        // Function to handle printing (for saving as PDF)
+        function generatePrint() {
+            window.print();
+        }
+
+        // Function to dynamically generate template previews
+        function renderTemplatePreviews() {
+            const container = document.getElementById('template-previews');
+            if (!container) return;
+
+            TEMPLATES.forEach(template => {
+                const isDefault = template.id === 1;
+                const url = template.url === 'none' ? 'https://placehold.co/100x70/f3f4f6/1d4ed8?text=Default' : template.url;
+
+                const templateDiv = document.createElement('div');
+                templateDiv.className = `template-preview rounded-lg overflow-hidden ${isDefault ? 'selected' : ''}`;
+                templateDiv.dataset.templateId = template.id;
+                templateDiv.title = template.name;
+                templateDiv.onclick = () => selectTemplate(template.id);
+                
+                templateDiv.innerHTML = `
+                    <img src="${url}" 
+                         alt="${template.name}" 
+                         class="w-full h-auto" 
+                         style="min-height: 70px; object-fit: cover; aspect-ratio: 100 / 70;" 
+                         onerror="this.onerror=null; this.src='https://placehold.co/100x70/f87171/ffffff?text=Error';"
+                    >
+                `;
+                container.appendChild(templateDiv);
+            });
+        }
+
+        // Initialization
+        window.onload = function() {
+            renderTemplatePreviews();
+            updateTemplateSelectionUI();
+            updateCertificate(); 
+
+            // Attach event listeners to all input fields
+            const inputs = document.querySelectorAll('#input-panel input, #input-panel textarea');
+            inputs.forEach(input => {
+                input.addEventListener('input', updateCertificate);
+            });
+
+            // Attach print listener
+            document.getElementById('printButton').addEventListener('click', generatePrint);
+        };
+    </script>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="main-container max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
+
+        <!-- Input Panel (Left Column) -->
+        <div id="input-panel" class="lg:w-1/3 bg-white p-6 rounded-xl shadow-lg h-full sticky top-8">
+            <h2 class="text-2xl font-bold mb-4 text-[#1d4ed8]">১. ডিজাইন নির্বাচন করুন</h2>
+            <div id="template-previews" class="grid grid-cols-5 gap-2 mb-8">
+                <!-- Template previews will be generated here -->
+            </div>
+            
+            <h2 class="text-2xl font-bold mb-4 text-[#1d4ed8]">২. সার্টিফিকেট তথ্য দিন</h2>
+            <p class="text-sm text-gray-600 mb-6">নীচের তথ্যগুলি পরিবর্তন করে প্রশংসাপত্রটি তৈরি করুন।</p>
+
+            <div class="space-y-4">
+                <label class="block">
+                    <span class="text-gray-700 font-semibold block mb-1">প্রাপকের নাম (Name)</span>
+                    <input type="text" id="recipientName" value="জনাব আব্দুল্লাহ" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-[#ef4444] focus:border-[#ef4444]">
+                </label>
+
+                <label class="block">
+                    <span class="text-gray-700 font-semibold block mb-1">অর্জনের ক্ষেত্র (Achievement)</span>
+                    <input type="text" id="achievement" value="ওয়েব ডিজাইন ও ডেভলপমেন্ট প্রশিক্ষণ" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-[#ef4444] focus:border-[#ef4444]">
+                </label>
+
+                <label class="block">
+                    <span class="text-gray-700 font-semibold block mb-1">স্বাক্ষরকারীর নাম (Signatory Name)</span>
+                    <input type="text" id="signatoryName" value="মো: কামরুল ইসলাম" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-[#ef4444] focus:border-[#ef4444]">
+                </label>
+                
+                <label class="block">
+                    <span class="text-gray-700 font-semibold block mb-1">স্বাক্ষরকারীর পদবি (Signatory Title)</span>
+                    <input type="text" id="signatoryTitle" value="প্রধান কার্যনির্বাহী (HK)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-[#ef4444] focus:border-[#ef4444]">
+                </label>
+
+                <!-- Action Button -->
+                <button id="printButton" class="w-full py-3 mt-6 bg-[#1d4ed8] text-white font-bold rounded-lg hover:bg-blue-700 transition duration-150 shadow-md">
+                    ৩. প্রিন্ট করুন বা PDF হিসেবে সেভ করুন
+                </button>
+            </div>
+        </div>
+
+        <!-- Certificate Display Area (Right Column) -->
+        <div class="lg:w-2/3">
+            <div id="certificate-area" class="rounded-xl flex flex-col justify-between default-style">
+                
+                <!-- Top Section -->
+                <div class="text-center mb-10">
+                    <div class="flex justify-center items-center space-x-2 text-xl mb-4 text-gray-600">
+                        <!-- Placeholder for HK Monogram/Logo -->
+                        <div class="font-serif text-3xl font-extrabold text-[#1d4ed8]">HK</div>
+                        <span>|</span>
+                        <div class="font-bold">HK Foundation</div>
+                    </div>
+                    
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-wider border-b-4 border-[#ef4444] inline-block pb-1">
+                        প্রশংসাপত্র (Certificate)
+                    </h1>
+                </div>
+
+                <!-- Main Content Section -->
+                <div class="text-center cert-text flex-grow">
+                    <!-- Dynamic statement will be inserted here -->
+                    <div id="certStatement" class="text-gray-800">
+                        <span class="text-xl md:text-2xl font-semibold text-gray-700">
+                            এই শংসাপত্রটি গর্বের সাথে দেওয়া হচ্ছে:
+                        </span>
+                        <br>
+                        <span class="text-3xl md:text-5xl font-extrabold text-[#1d4ed8] my-4 block">
+                            প্রাপকের নাম
+                        </span>
+                        <br>
+                        <span class="text-xl md:text-2xl text-gray-800">
+                            তাঁর/তাঁদের অসাধারণ দক্ষতা, কঠোর পরিশ্রম এবং সফলভাবে
+                        </span>
+                        <br>
+                        <span class="text-2xl md:text-3xl italic text-[#ef4444] font-bold my-2 block">
+                            "অসামান্য অর্জন"
+                        </span>
+                        <br>
+                        <span class="text-lg md:text-xl text-gray-700">
+                            বিষয়টি সম্পন্ন করার স্বীকৃতিস্বরূপ।
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Bottom Section (Signatures and Date) -->
+                <div class="flex justify-between items-end mt-16">
+                    
+                    <!-- Left Signature -->
+                    <div class="text-center w-1/3">
+                        <div class="signature-line mx-auto"></div>
+                        <p class="text-base font-medium text-gray-700 mt-1">স্বাক্ষর</p>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="text-center w-1/3">
+                        <p id="certDate" class="text-lg font-medium text-gray-600">প্রদানের তারিখ: [তারিখ]</p>
+                    </div>
+
+                    <!-- Right Signatory -->
+                    <div class="text-center w-1/3">
+                        <div class="signature-line mx-auto"></div>
+                        <p id="certSignatoryName" class="text-base font-bold text-gray-800 mt-1">স্বাক্ষরকারী কর্মকর্তা</p>
+                        <p id="certSignatoryTitle" class="text-sm text-[#ef4444]">প্রধান কার্যনির্বাহী (HK)</p>
+                    </div>
+                </div>
+
+                <!-- PDF Footer (Visible only during Print) -->
+                <div id="certificate-footer">
+                    Maked By HK IT LAB
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
